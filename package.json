@@ -1,0 +1,16 @@
+{
+  "name": "node-myanimelist-oauth-example",
+  "version": "1.0.0",
+  "description": "",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.17.1",
+    "node-fetch": "^2.6.1",
+    "pkce-challenge": "^2.1.0"
+  }
+}
