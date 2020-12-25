@@ -15,14 +15,23 @@ const { writeFileSync } = require("fs");
 
 const app = express();
 const port = 3000;
-const rl = readline.createInterface({
-	input: process.stdin,
-	output: process.stdout,
+
+// server for showing the authorization code
+const server = app.listen(port, () => {
+	init();
+});
+
+// route for displaying Authorization Code
+app.get("/oauth", (req, res) => {
+	res.send(
+		`<h3>Your Authorization Code: </h3>
+    <input type="text" value="${req.query.code}" style="font-size:20px; width: 80%; height: 40%"/>`
+	);
 });
 
 // 0. Add your client info from https://myanimelist.net/apiconfig
-const clientId = "your client id";
-const clientSecret = "your client secret";
+const clientId = "put your client id here";
+const clientSecret = "put your client secret here";
 
 // 1. Generate a new Code Verifier / Code Challenge.
 const getNewCodeVerifier = () => {
@@ -36,7 +45,14 @@ const requestAuthorizationCode = (codeChallenge) => {
 		const url = `https://myanimelist.net/v1/oauth2/authorize?response_type=code&client_id=${clientId}&code_challenge=${codeChallenge}`;
 		console.log(`Authorize your application by clicking here: ${url}\n\n`);
 
+		const rl = readline.createInterface({
+			input: process.stdin,
+			output: process.stdout,
+		});
+
 		rl.question("Copy & paste the Authorization Code:", (authorizationCode) => {
+			rl.close();
+			server.close();
 			resolve(authorizationCode.trim());
 		});
 	});
@@ -70,12 +86,15 @@ const generateNewToken = async (authorizationCode, codeVerifier) => {
 
 	const res = await fetch(url, options);
 	const data = await res.json();
-	console.log("Token generated successfully!");
 
-	writeFileSync("token.json", JSON.stringify(data));
-	console.log('Token saved in "token.json"');
-
-	return data;
+	if (res.status === 200) {
+		console.log("Token generated successfully!");
+		writeFileSync("token.json", JSON.stringify(data));
+		console.log('Token saved in "token.json"');
+		return data;
+	} else {
+		throw `Unable to generate the token!: ${JSON.stringify(data)}`;
+	}
 };
 
 // 4. Test the API by requesting your profile information
@@ -89,29 +108,24 @@ const printUserInfo = (accessToken) => {
 			return res.json();
 		})
 		.then((data) => {
-			console.log(`Greetings ${data.name}`);
+			console.log(`Greetings ${data.name}!.`);
 		})
 		.catch((e) => {
 			console.log("Unable to request user info.", e);
 		});
 };
 
-// route for displaying Authorization Code
-app.get("/oauth", (req, res) => {
-	res.send(
-		`<h3>Your Authorization Code: </h3>
-    <input type="text" value="${req.query.code}" style="font-size:20px; width: 80%; height: 40%"/>`
-	);
-});
-
 const init = async () => {
 	const codeVerifier = getNewCodeVerifier();
 	const codeChallenge = codeVerifier;
 
 	authorizationCode = await requestAuthorizationCode(codeChallenge);
-	token = await generateNewToken(authorizationCode, codeVerifier);
 
-	printUserInfo(token.access_token);
+	generateNewToken(authorizationCode, codeVerifier)
+		.then((token) => {
+			printUserInfo(token.access_token);
+		})
+		.catch((e) => {
+			console.log(e);
+		});
 };
-
-app.listen(port, init);
